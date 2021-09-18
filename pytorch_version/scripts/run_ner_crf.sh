@@ -3,6 +3,7 @@ export BERT_BASE_DIR=$CURRENT_DIR/prev_trained_model/bert-base
 export CLUE_DIR=$CURRENT_DIR/datasets
 export OUTPUR_DIR=$CURRENT_DIR/outputs
 TASK_NAME="cluener"
+TASK_NAME="skillner"
 #
 python run_ner_crf.py \
   --model_type=bert \
