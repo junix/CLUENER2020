@@ -11,7 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from callback.optimizater.adamw import AdamW
 from callback.lr_scheduler import get_linear_schedule_with_warmup
 from callback.progressbar import ProgressBar
-from tools.common import seed_everything,json_to_text
+from tools.common import seed_everything, json_to_text
 from tools.common import init_logger, logger
 
 from models.transformers import WEIGHTS_NAME, BertConfig, AlbertConfig
@@ -29,6 +29,7 @@ MODEL_CLASSES = {
     'bert': (BertConfig, BertCrfForNer, CNerTokenizer),
     'albert': (AlbertConfig, AlbertCrfForNer, CNerTokenizer)
 }
+
 
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
@@ -273,7 +274,7 @@ def predict(args, model, tokenizer, prefix=""):
             outputs = model(**inputs)
             logits = outputs[0]
             tags = model.crf.decode(logits, inputs['attention_mask'])
-            tags  = tags.squeeze(0).cpu().numpy().tolist()
+            tags = tags.squeeze(0).cpu().numpy().tolist()
         preds = tags[0][1:-1]  # [CLS]XXXX[SEP]
         label_entities = get_entities(preds, args.id2label, args.markup)
         json_d = {}
@@ -289,7 +290,7 @@ def predict(args, model, tokenizer, prefix=""):
     if args.task_name == 'cluener':
         output_submit_file = os.path.join(pred_output_dir, prefix, "test_submit.json")
         test_text = []
-        with open(os.path.join(args.data_dir,"test.json"), 'r') as fr:
+        with open(os.path.join(args.data_dir, "test.json"), 'r') as fr:
             for line in fr:
                 test_text.append(json.loads(line))
         test_submit = []
@@ -314,7 +315,8 @@ def predict(args, model, tokenizer, prefix=""):
                         json_d['label'][tag] = {}
                         json_d['label'][tag][word] = [[start, end]]
             test_submit.append(json_d)
-        json_to_text(output_submit_file,test_submit)
+        json_to_text(output_submit_file, test_submit)
+
 
 def load_and_cache_examples(args, task, tokenizer, data_type='train'):
     if args.local_rank not in [-1, 0] and not evaluate:
