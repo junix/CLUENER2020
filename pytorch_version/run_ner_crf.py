@@ -372,6 +372,17 @@ def load_and_cache_examples(args, task, tokenizer, data_type='train'):
 def main():
     args = get_argparse().parse_args()
 
+    for attr in dir(args):
+        if attr.startswith('__'):
+            continue
+        val = getattr(args, attr)
+        if callable(val):
+            continue
+        if isinstance(val, str):
+            print(f"{attr}='{val}'")
+        else:
+            print(f"{attr}={val}")
+
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
     args.output_dir = args.output_dir + '{}'.format(args.model_type)
