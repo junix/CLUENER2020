@@ -12,6 +12,7 @@ python run_ner_crf.py \
   --model_name_or_path=$BERT_BASE_DIR \
   --task_name=$TASK_NAME \
   --do_eval \
+  --do_predict \
   --do_lower_case \
   --data_dir=$GLUE_DIR/${TASK_NAME}/ \
   --train_max_seq_length=128 \

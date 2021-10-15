@@ -18,7 +18,7 @@ from models.transformers import WEIGHTS_NAME, BertConfig, AlbertConfig
 from models.bert_for_ner import BertCrfForNer
 from models.albert_for_ner import AlbertCrfForNer
 from processors.utils_ner import CNerTokenizer, get_entities
-from processors.ner_seq import convert_examples_to_features
+from processors.ner_seq import convert_examples_to_features, InputExample
 from processors.ner_seq import ner_processors as processors
 from processors.ner_seq import collate_fn
 from metrics.ner_metrics import SeqEntityScore
@@ -267,6 +267,7 @@ def predict(args, model, tokenizer, prefix=""):
         model.eval()
         batch = tuple(t.to(args.device) for t in batch)
         with torch.no_grad():
+            print("wanglijun", batch[0].shape,batch[1].shape, batch[4].shape)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None, 'input_lens': batch[4]}
             if args.model_type != "distilbert":
                 # XLM and RoBERTa don"t use segment_ids
@@ -367,6 +368,111 @@ def load_and_cache_examples(args, task, tokenizer, data_type='train'):
     all_lens = torch.tensor([f.input_len for f in features], dtype=torch.long)
     dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_lens, all_label_ids)
     return dataset
+
+
+def convert_to_features(examples,
+                        label_list,
+                        max_seq_length,
+                        tokenizer,
+                        cls_token_at_end=False,
+                        cls_token="[CLS]",
+                        cls_token_segment_id=1,
+                        sep_token="[SEP]",
+                        pad_on_left=False,
+                        pad_token=0,
+                        pad_token_segment_id=0,
+                        sequence_a_segment_id=0,
+                        mask_padding_with_zero=True, ):
+    """ Loads a data file into a list of `InputBatch`s
+        `cls_token_at_end` define the location of the CLS token:
+            - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
+            - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
+        `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
+    """
+    label_map = {label: i for i, label in enumerate(label_list)}
+    features = []
+    for (ex_index, example) in enumerate(examples):
+        if ex_index % 10000 == 0:
+            logger.info("Writing example %d of %d", ex_index, len(examples))
+        tokens = tokenizer.tokenize(example.text_a)
+        label_ids = [label_map[x] for x in example.labels]
+        # Account for [CLS] and [SEP] with "- 2".
+        special_tokens_count = 2
+        if len(tokens) > max_seq_length - special_tokens_count:
+            tokens = tokens[: (max_seq_length - special_tokens_count)]
+            label_ids = label_ids[: (max_seq_length - special_tokens_count)]
+
+        # The convention in BERT is:
+        # (a) For sequence pairs:
+        #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
+        #  type_ids:   0   0  0    0    0     0       0   0   1  1  1  1   1   1
+        # (b) For single sequences:
+        #  tokens:   [CLS] the dog is hairy . [SEP]
+        #  type_ids:   0   0   0   0  0     0   0
+        #
+        # Where "type_ids" are used to indicate whether this is the first
+        # sequence or the second sequence. The embedding vectors for `type=0` and
+        # `type=1` were learned during pre-training and are added to the wordpiece
+        # embedding vector (and position vector). This is not *strictly* necessary
+        # since the [SEP] token unambiguously separates the sequences, but it makes
+        # it easier for the model to learn the concept of sequences.
+        #
+        # For classification tasks, the first vector (corresponding to [CLS]) is
+        # used as as the "sentence vector". Note that this only makes sense because
+        # the entire model is fine-tuned.
+        tokens += [sep_token]
+        label_ids += [label_map['O']]
+        segment_ids = [sequence_a_segment_id] * len(tokens)
+
+        if cls_token_at_end:
+            tokens += [cls_token]
+            label_ids += [label_map['O']]
+            segment_ids += [cls_token_segment_id]
+        else:
+            tokens = [cls_token] + tokens
+            label_ids = [label_map['O']] + label_ids
+            segment_ids = [cls_token_segment_id] + segment_ids
+
+        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        # The mask has 1 for real tokens and 0 for padding tokens. Only real
+        # tokens are attended to.
+        input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
+        input_len = len(label_ids)
+        # Zero-pad up to the sequence length.
+        padding_length = max_seq_length - len(input_ids)
+        if pad_on_left:
+            input_ids = ([pad_token] * padding_length) + input_ids
+            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
+            label_ids = ([pad_token] * padding_length) + label_ids
+        else:
+            input_ids += [pad_token] * padding_length
+            input_mask += [0 if mask_padding_with_zero else 1] * padding_length
+            segment_ids += [pad_token_segment_id] * padding_length
+            label_ids += [pad_token] * padding_length
+
+        assert len(input_ids) == max_seq_length
+        assert len(input_mask) == max_seq_length
+        assert len(segment_ids) == max_seq_length
+        assert len(label_ids) == max_seq_length
+        if ex_index < 5:
+            logger.info("*** Example ***")
+            logger.info("guid: %s", example.guid)
+            logger.info("tokens: %s", " ".join([str(x) for x in tokens]))
+            logger.info("input_ids: %s", " ".join([str(x) for x in input_ids]))
+            logger.info("input_mask: %s", " ".join([str(x) for x in input_mask]))
+            logger.info("segment_ids: %s", " ".join([str(x) for x in segment_ids]))
+            logger.info("label_ids: %s", " ".join([str(x) for x in label_ids]))
+
+        # inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None, 'input_lens': batch[4]}
+        # features.append(InputFeatures(input_ids=input_ids, input_mask=input_mask, input_len=input_len,
+        #                               segment_ids=segment_ids, label_ids=label_ids))
+    return features
+
+
+def convert_text(text):
+    from processors.ner_seq import convert_examples_to_features, InputExample
+    ...
 
 
 def main():
