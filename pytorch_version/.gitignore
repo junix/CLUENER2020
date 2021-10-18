@@ -1,0 +1,7 @@
+datasets/skillner/cached_crf-*
+prev_trained_model
+prev_trained_model.d
+outputs
+*/__pycache__
+*/*/__pycache__
+*/*/*/__pycache__
