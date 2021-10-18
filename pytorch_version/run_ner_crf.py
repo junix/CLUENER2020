@@ -267,7 +267,7 @@ def predict(args, model, tokenizer, prefix=""):
         model.eval()
         batch = tuple(t.to(args.device) for t in batch)
         with torch.no_grad():
-            print("wanglijun", batch[0].shape,batch[1].shape, batch[4].shape)
+            print("wanglijun", batch[0].shape, batch[1].shape, batch[4].shape)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None, 'input_lens': batch[4]}
             if args.model_type != "distilbert":
                 # XLM and RoBERTa don"t use segment_ids
@@ -464,7 +464,14 @@ def convert_to_features(examples,
             logger.info("segment_ids: %s", " ".join([str(x) for x in segment_ids]))
             logger.info("label_ids: %s", " ".join([str(x) for x in label_ids]))
 
-        # inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None, 'input_lens': batch[4]}
+        inputs = [
+            {
+                "input_ids": torch.tensor([input_ids], dtype=torch.long),
+                "attention_mask": torch.tensor([input_mask], dtype=torch.long),
+                "labels": None,
+                'input_lens': torch.tensor([input_len], dtype=torch.long)
+            }
+        ]
         # features.append(InputFeatures(input_ids=input_ids, input_mask=input_mask, input_len=input_len,
         #                               segment_ids=segment_ids, label_ids=label_ids))
     return features

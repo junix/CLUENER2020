@@ -133,6 +133,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # tokens are attended to.
         input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
         input_len = len(label_ids)
+        print(f"len token:{len(tokens)}, input_len:{input_len}")
         # Zero-pad up to the sequence length.
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
@@ -150,7 +151,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
-        if ex_index < 5:
+        if ex_index < 50:
             logger.info("*** Example ***")
             logger.info("guid: %s", example.guid)
             logger.info("tokens: %s", " ".join([str(x) for x in tokens]))
