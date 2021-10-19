@@ -269,16 +269,19 @@ def predict(args, model, tokenizer, prefix=""):
         with torch.no_grad():
             print("wanglijun", batch[0].shape, batch[1].shape, batch[4].shape)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None, 'input_lens': batch[4]}
-            print(inputs)
             if args.model_type != "distilbert":
                 # XLM and RoBERTa don"t use segment_ids
                 inputs["token_type_ids"] = (batch[2] if args.model_type in ["bert", "xlnet"] else None)
+            print(inputs)
             outputs = model(**inputs)
             logits = outputs[0]
+            print("logits>>", logits)
             tags = model.crf.decode(logits, inputs['attention_mask'])
             tags = tags.squeeze(0).cpu().numpy().tolist()
         preds = tags[0][1:-1]  # [CLS]XXXX[SEP]
+        print("preds>>",preds)
         label_entities = get_entities(preds, args.id2label, args.markup)
+        print("label_entities>>", label_entities)
         json_d = {}
         json_d['id'] = step
         json_d['tag_seq'] = " ".join([args.id2label[x] for x in preds])
@@ -592,6 +595,7 @@ def main():
                 writer.write("{} = {}\n".format(key, str(results[key])))
 
     if args.do_predict and args.local_rank in [-1, 0]:
+        print("output_dir>>", args.output_dir)
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
         checkpoints = [args.output_dir]
         if args.predict_checkpoints > 0:
@@ -602,6 +606,7 @@ def main():
         logger.info("Predict the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
             prefix = checkpoint.split('/')[-1] if checkpoint.find('checkpoint') != -1 else ""
+            print("model>>", checkpoint)
             model = model_class.from_pretrained(checkpoint, config=config)
             model.to(args.device)
             predict(args, model, tokenizer, prefix=prefix)
