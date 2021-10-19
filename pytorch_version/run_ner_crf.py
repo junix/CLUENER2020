@@ -269,6 +269,7 @@ def predict(args, model, tokenizer, prefix=""):
         with torch.no_grad():
             print("wanglijun", batch[0].shape, batch[1].shape, batch[4].shape)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None, 'input_lens': batch[4]}
+            print(inputs)
             if args.model_type != "distilbert":
                 # XLM and RoBERTa don"t use segment_ids
                 inputs["token_type_ids"] = (batch[2] if args.model_type in ["bert", "xlnet"] else None)
@@ -284,6 +285,8 @@ def predict(args, model, tokenizer, prefix=""):
         json_d['entities'] = label_entities
         results.append(json_d)
         pbar(step)
+        if step == 0:
+            break
     logger.info("\n")
     with open(output_predict_file, "w") as writer:
         for record in results:
