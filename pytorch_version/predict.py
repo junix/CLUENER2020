@@ -72,11 +72,8 @@ def convert_to_features(example,
     # For classification tasks, the first vector (corresponding to [CLS]) is
     # used as as the "sentence vector". Note that this only makes sense because
     # the entire model is fine-tuned.
-    tokens += [sep_token]
-    segment_ids = [sequence_a_segment_id] * len(tokens)
-    tokens = [cls_token] + tokens
-    segment_ids = [0] + segment_ids
-
+    tokens = [cls_token] + tokens + [sep_token]
+    segment_ids = [0] * len(tokens)
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
     # tokens are attended to.
