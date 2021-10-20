@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 CURRENT_DIR=`pwd`
 export BERT_BASE_DIR=$CURRENT_DIR/prev_trained_model/roberta_wwm_large_ext
 export GLUE_DIR=$CURRENT_DIR/CLUEdatasets

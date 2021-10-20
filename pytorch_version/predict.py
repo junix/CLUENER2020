@@ -1,4 +1,5 @@
 import time
+import os
 
 import torch
 
@@ -10,11 +11,28 @@ from processors.utils_ner import CNerTokenizer, get_entities
 from tools.common import init_logger, logger
 from tools.common import seed_everything
 
-MODEL_CLASSES = {
-    ## bert ernie bert_wwm bert_wwwm_ext
-    'bert': (BertConfig, BertCrfForNer, CNerTokenizer),
-    'albert': (AlbertConfig, AlbertCrfForNer, CNerTokenizer)
-}
+_project_dir = os.path.dirname(__file__)
+output_dir = f'{_project_dir}/outputs/skillner_output/bert'
+task_name = "skillner"
+seed = 42
+do_lower_case = True
+eval_max_seq_length = 512
+markup = 'bios'
+model_name_or_path = f'{_project_dir}/prev_trained_model/roberta_wwm_large_ext'
+model_type = 'bert'
+
+processor = processors[task_name]()
+label_list = processor.get_labels()
+num_labels = len(label_list)
+id2label = {i: label for i, label in enumerate(label_list)}
+label2id = {label: i for i, label in enumerate(label_list)}
+
+
+def get_device():
+    return torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+
+
+device = get_device()
 
 
 def convert_to_features(example,
@@ -37,7 +55,6 @@ def convert_to_features(example,
     """
 
     tokens = tokenizer.tokenize(example)
-    print(tokens)
     # Account for [CLS] and [SEP] with "- 2".
     special_tokens_count = 2
     if len(tokens) > max_seq_length - special_tokens_count:
@@ -99,129 +116,33 @@ def convert_to_features(example,
     logger.info("segment_ids: %s", " ".join([str(x) for x in segment_ids]))
 
     return {
-        "input_ids": torch.tensor([input_ids], dtype=torch.long),
-        "attention_mask": torch.tensor([input_mask], dtype=torch.long),
+        "input_ids": torch.tensor([input_ids], dtype=torch.long).to(device),
+        "attention_mask": torch.tensor([input_mask], dtype=torch.long).to(device),
         "labels": None,
-        "token_type_ids": torch.tensor([segment_ids], dtype=torch.long),
-        'input_lens': torch.tensor([input_len], dtype=torch.long)
+        "token_type_ids": torch.tensor([segment_ids], dtype=torch.long).to(device),
+        'input_lens': torch.tensor([input_len], dtype=torch.long).to(device)
     }
-
-
-output_dir = "outputs/skillner_output/bert/"
-task_name = "skillner"
-no_cuda = True
-local_rank = -1
-seed = 42
-
-adam_epsilon = 1e-08
-adv_epsilon = 1.0
-adv_name = 'word_embeddings'
-cache_dir = ''
-config_name = ''
-crf_learning_rate = 5e-05
-data_dir = '/Users/junix/code/CLUENER2020/pytorch_version/datasets/skillner/'
-do_adv = False
-do_eval = True
-do_lower_case = True
-do_predict = False
-do_train = False
-eval_all_checkpoints = False
-eval_max_seq_length = 512
-evaluate_during_training = False
-fp16 = False
-fp16_opt_level = 'O1'
-gradient_accumulation_steps = 1
-learning_rate = 3e-05
-local_rank = -1
-logging_steps = 448
-loss_type = 'ce'
-markup = 'bios'
-max_grad_norm = 1.0
-max_steps = -1
-model_name_or_path = '/Users/junix/code/CLUENER2020/pytorch_version/prev_trained_model/roberta_wwm_large_ext'
-model_type = 'bert'
-no_cuda = False
-num_train_epochs = 5.0
-output_dir = '/Users/junix/code/CLUENER2020/pytorch_version/outputs/skillner_output/bert'
-overwrite_cache = False
-overwrite_output_dir = True
-per_gpu_eval_batch_size = 24
-per_gpu_train_batch_size = 24
-predict_checkpoints = 0
-save_steps = 448
-seed = 42
-server_ip = ''
-server_port = ''
-task_name = 'skillner'
-tokenizer_name = ''
-train_max_seq_length = 128
-warmup_proportion = 0.1
-weight_decay = 0.01
-
-processor = processors[task_name]()
-label_list = processor.get_labels()
-id2label = {i: label for i, label in enumerate(label_list)}
-label2id = {label: i for i, label in enumerate(label_list)}
 
 
 def load_model():
     global model_type
-
     time_ = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
     init_logger(log_file=output_dir + f'/{model_type}-{task_name}-{time_}.log')
-
-    # Setup CUDA, GPU & distributed training
-    if local_rank == -1 or no_cuda:
-        device = torch.device("cuda" if torch.cuda.is_available() and not no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
-    else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.cuda.set_device(local_rank)
-        device = torch.device("cuda", local_rank)
-        n_gpu = 1
-
-    print(device, n_gpu)
-
-    logger.warning(
-        "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training",
-        local_rank, device, n_gpu, bool(local_rank != -1), )
+    logger.warning("Process device: %s,16-bits training", device)
     # Set seed
     seed_everything(seed)
     # Prepare NER task
 
-    if task_name not in processors:
-        raise ValueError("Task not found: %s" % (task_name))
+    assert task_name in processors
 
-    processor = processors[task_name]()
-    label_list = processor.get_labels()
-    id2label = {i: label for i, label in enumerate(label_list)}
-    label2id = {label: i for i, label in enumerate(label_list)}
-    num_labels = len(label_list)
-
-    print(id2label)
-    print(label2id)
-
-    # Load pretrained model and tokenizer
-    if local_rank not in [-1, 0]:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
     model_type = model_type.lower()
-    config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-    config = config_class.from_pretrained(config_name if config_name else model_name_or_path,
-                                          num_labels=num_labels, cache_dir=cache_dir if cache_dir else None, )
-    tokenizer = tokenizer_class.from_pretrained(tokenizer_name if tokenizer_name else model_name_or_path,
-                                                do_lower_case=do_lower_case,
-                                                cache_dir=cache_dir if cache_dir else None, )
-    print("model_name_or_path>>", model_name_or_path)
-    model = model_class.from_pretrained(output_dir, from_tf=bool(".ckpt" in model_name_or_path),
-                                        config=config, cache_dir=cache_dir if cache_dir else None)
-    if local_rank == 0:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
-
-    model.to(device)
-    logger.info("Training/evaluation parameters")
-    model.eval()
-
-    print(tokenizer)
-    return tokenizer, model
+    config_class, model_class, tokenizer_class = BertConfig, BertCrfForNer, CNerTokenizer
+    config = config_class.from_pretrained(model_name_or_path, num_labels=num_labels, cache_dir=None)
+    _tokenizer = tokenizer_class.from_pretrained(model_name_or_path, do_lower_case=do_lower_case, cache_dir=None)
+    _model = model_class.from_pretrained(output_dir, from_tf=False, config=config, cache_dir=None)
+    _model.to(device)
+    _model.eval()
+    return _tokenizer, _model
 
 
 tokenizer, model = load_model()
