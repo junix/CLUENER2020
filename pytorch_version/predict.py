@@ -1,28 +1,14 @@
-import glob
-import logging
-import os
-import json
 import time
 
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from torch.utils.data.distributed import DistributedSampler
-from callback.optimizater.adamw import AdamW
-from callback.lr_scheduler import get_linear_schedule_with_warmup
-from callback.progressbar import ProgressBar
-from tools.common import seed_everything, json_to_text
-from tools.common import init_logger, logger
 
-from models.transformers import WEIGHTS_NAME, BertConfig, AlbertConfig
-from models.bert_for_ner import BertCrfForNer
 from models.albert_for_ner import AlbertCrfForNer
-from processors.utils_ner import CNerTokenizer, get_entities
-from processors.ner_seq import convert_examples_to_features
+from models.bert_for_ner import BertCrfForNer
+from models.transformers import BertConfig, AlbertConfig
 from processors.ner_seq import ner_processors as processors
-from processors.ner_seq import collate_fn
-from metrics.ner_metrics import SeqEntityScore
-from tools.finetuning_argparse import get_argparse
+from processors.utils_ner import CNerTokenizer, get_entities
+from tools.common import init_logger, logger
+from tools.common import seed_everything
 
 MODEL_CLASSES = {
     ## bert ernie bert_wwm bert_wwwm_ext
