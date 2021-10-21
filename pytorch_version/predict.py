@@ -1,11 +1,10 @@
-import time
 import os
+import time
 
 import torch
 
-from models.albert_for_ner import AlbertCrfForNer
 from models.bert_for_ner import BertCrfForNer
-from models.transformers import BertConfig, AlbertConfig
+from models.transformers import BertConfig
 from processors.ner_seq import ner_processors as processors
 from processors.utils_ner import CNerTokenizer, get_entities
 from tools.common import init_logger, logger
@@ -35,17 +34,10 @@ def get_device():
 device = get_device()
 
 
-def convert_to_features(example,
-                        max_seq_length,
-                        tokenizer,
-                        cls_token="[CLS]",
-                        sep_token="[SEP]",
-                        sequence_a_segment_id=0):
-    """ Loads a data file into a list of `InputBatch`s
-        `cls_token_at_end` define the location of the CLS token:
-            - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
-            - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
-        `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
+def convert_to_features(example, max_seq_length, tokenizer, cls_token="[CLS]", sep_token="[SEP]"):
+    """ The location of the CLS token:
+            - BERT/XLM pattern  : [CLS] + A + [SEP] + B + [SEP]
+            - XLNet/GPT pattern : A + [SEP] + B + [SEP] + [CLS]
     """
 
     tokens = tokenizer.tokenize(example)
@@ -125,9 +117,7 @@ def predict(text):
         max_seq_length=eval_max_seq_length,
         tokenizer=tokenizer,
         cls_token=tokenizer.cls_token,
-        sep_token=tokenizer.sep_token,
-        sequence_a_segment_id=0
-    )
+        sep_token=tokenizer.sep_token)
     model.eval()
     with torch.no_grad():
         outputs = model(**inputs)
